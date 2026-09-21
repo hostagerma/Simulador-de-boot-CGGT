@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador CGGT - Atendimento WhatsApp</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+        body { background-color: #d1d7db; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        
+        /* TELA DE SENHA */
+        #tela-bloqueio { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #111b21; display: flex; justify-content: center; align-items: center; z-index: 999; }
+        .card-senha { background: #202c33; padding: 30px; border-radius: 10px; width: 90%; max-width: 380px; text-align: center; color: #e9edef; box-shadow: 0 4px 15px rgba(0,0,0,0.5); }
+        .card-senha h2 { margin-bottom: 10px; font-size: 1.3rem; }
+        .card-senha p { font-size: 0.85rem; color: #8696a0; margin-bottom: 20px; }
+        .card-senha input { width: 100%; padding: 12px; border-radius: 6px; border: 1px solid #2a3942; background: #111b21; color: #fff; font-size: 1rem; margin-bottom: 15px; outline: none; }
+        .card-senha button { width: 100%; padding: 12px; border: none; border-radius: 6px; background: #00a884; color: #fff; font-weight: bold; cursor: pointer; font-size: 1rem; }
+        .card-senha button:hover { background: #008f6f; }
+        #msg-erro { color: #f15c6d; font-size: 0.85rem; margin-top: 10px; display: none; }
+
+        /* CONTAINER DO CHAT */
+        .chat-container { width: 100%; max-width: 480px; height: 100vh; max-height: 850px; background: #efeae2; display: flex; flex-direction: column; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; overflow: hidden; }
+        
+        /* CABEÇALHO */
+        .header { background: #008069; color: white; padding: 12px 16px; display: flex; align-items: center; gap: 12px; }
+        .avatar { width: 40px; height: 40px; border-radius: 50%; background: #e9edef; display: flex; align-items: center; justify-content: center; font-weight: bold; color: #008069; }
+        .header-info h1 { font-size: 1rem; }
+        .header-info p { font-size: 0.75rem; opacity: 0.85; }
+
+        /* MENSAGENS */
+        .messages { flex: 1; padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; background-image: radial-gradient(#d1d7db 1px, transparent 1px); background-size: 20px 20px; }
+        .msg { max-width: 82%; padding: 8px 12px; border-radius: 8px; font-size: 0.88rem; line-height: 1.4; white-space: pre-wrap; word-wrap: break-word; position: relative; box-shadow: 0 1px 0.5px rgba(11,20,26,.13); }
+        .msg.bot { background: #ffffff; align-self: flex-start; border-top-left-radius: 0; }
+        .msg.user { background: #d9fdd3; align-self: flex-end; border-top-right-radius: 0; }
+        .msg a { color: #027eb5; text-decoration: underline; }
+        .hora { font-size: 0.65rem; color: #667781; float: right; margin-top: 4px; margin-left: 8px; }
+
+        /* ENTRADA */
+        .input-bar { background: #f0f2f5; padding: 8px 12px; display: flex; gap: 8px; align-items: center; }
+        .input-bar input { flex: 1; padding: 10px 14px; border-radius: 8px; border: 1px solid #e9edef; outline: none; font-size: 0.95rem; }
+        .input-bar button { background: #00a884; color: white; border: none; padding: 10px 16px; border-radius: 8px; font-weight: bold; cursor: pointer; }
+        .input-bar button:hover { background: #008f6f; }
+    </style>
+</head>
+<body>
+
+    <!-- TELA DE SENHA -->
+    <div id="tela-bloqueio">
+        <div class="card-senha">
+            <h2>🔒 Ambiente Restrito</h2>
+            <p>Digite a senha de acesso para testar o simulador CGGT:</p>
+            <input type="password" id="input-senha" placeholder="Senha de acesso..." onkeydown="if(event.key==='Enter') verificarSenha()">
+            <button onclick="verificarSenha()">Entrar</button>
+            <p id="msg-erro">Senha incorreta. Tente novamente.</p>
+        </div>
+    </div>
+
+    <!-- CHAT SIMULADO -->
+    <div class="chat-container">
+        <div class="header">
+            <div class="avatar">C</div>
+            <div class="header-info">
+                <h1>Atendimento CGGT / FNAS</h1>
+                <p>Simulador Interativo</p>
+            </div>
+        </div>
+
+        <div class="messages" id="chat-mensagens"></div>
+
+        <div class="input-bar">
+            <input type="text" id="campo-texto" placeholder="Digite uma mensagem..." onkeydown="if(event.key==='Enter') enviarMensagem()">
+            <button onclick="enviarMensagem()">Enviar</button>
+        </div>
+    </div>
+
+    <script>
+        // DEFINA A SENHA DE ACESSO AQUI:
+        const SENHA_CORRETA = "cggt2026";
+
+        function verificarSenha() {
+            const senhaDigitada = document.getElementById("input-senha").value;
+            if (senhaDigitada === SENHA_CORRETA) {
+                document.getElementById("tela-bloqueio").style.display = "none";
+                iniciarChat();
+            } else {
+                document.getElementById("msg-erro").style.display = "block";
+            }
+        }
+
+        // LÓGICA E TEXTOS DO BOT (VERSÃO 0.4)
+        function obterSaudacao() {
+            const hora = new Date().getHours();
+            if (hora >= 5 && hora < 12) return "Bom dia!";
+            if (hora >= 12 && hora < 18) return "Boa tarde!";
+            return "Boa noite!";
+        }
+
+        function gerarMenuPrincipal() {
+            return `${obterSaudacao()}\nSeja bem-vindo ao canal de atendimento. Selecione a equipe desejada:\n\n1️⃣ Instrução.\n2️⃣ Análise de Mérito.\n3️⃣ Execução.\n4️⃣ Prestação de Contas.\n\n_Responda apenas com o número correspondente (1 a 4)._`;
+        }
+
+        const MENU_INSTRUCAO = `📌 *Menu: Instrução*\n\n1️⃣ Acesso ao EstruturaSUAS\n2️⃣ Guia sobre reparo, manutenção e adaptação de unidades públicas\n3️⃣ Recurso pago, qual o próximo passo?\n4️⃣ Acesso ao Transfere.gov?\n5️⃣ Consulta CNEAS\n6️⃣ Parcelas Pagas\n7️⃣ Contatos da equipe de instrução\n8️⃣ Protocolo digital\n9️⃣ Falar com um atendente\n0️⃣ Voltar ao Menu Principal\n\n_Responda com o número da opção desejada._`;
+        const MENU_MERITO = `📌 *Menu: Análise de Mérito*\n\n1️⃣ Programação em complementação do gestor\n2️⃣ Programação em complementação do conselho\n3️⃣ Programação em complementação: CNEAS desatualizado\n4️⃣ Contatos da Equipe de Análise de Mérito\n5️⃣ Protocolo digital\n6️⃣ Falar com um atendente\n0️⃣ Voltar ao Menu Principal\n\n_Responda com o número da opção desejada._`;
+        const MENU_EXECUCAO = `📌 *Menu: Execução*\n\n1️⃣ Prorrogação\n2️⃣ NobRH-SUAS\n3️⃣ Alteração de itens/beneficiário\n4️⃣ Reprogramação\n5️⃣ Obras\n6️⃣ Plotagem e ATA de registro de preço de veículos\n7️⃣ Defeso eleitoral\n8️⃣ Protocolo digital\n9️⃣ Contatos da Equipe de Execução da CGGT\n🔟 Falar com um atendente\n0️⃣ Voltar ao Menu Principal\n\n_Responda com o número da opção desejada._`;
+        const MENU_PRESTACAO = `📌 *Menu: Prestação de Contas*\n\n1️⃣ Contatos da equipe de prestação de contas\n2️⃣ Protocolo digital\n3️⃣ Falar com um atendente\n0️⃣ Voltar ao Menu Principal\n\n_Responda com o número da opção desejada._`;
+        const MSG_ATENDENTE = `Caríssimo Gestor,\n\nVou transferir seu atendimento para um técnico.\nSe preferir, encaminhe sua dúvida para: fnas.convenios@mds.gov.br\n\n────────────────────────\n_O atendimento automático foi pausado. Um técnico responderá em breve._\n_(Caso deseje reativar o bot no futuro, digite *#menu*)_`;
+        const MSG_INVALIDA = "⚠️ *Opção inválida!* Por favor, digite apenas um dos números listados no menu.";
+        const RODAPE_SUBMENU = "\n\n────────────────────────\n_Digite outro número do menu, *0* para o Menu Principal ou a opção de atendente._";
+
+        const RESPOSTAS_INSTRUCAO = {
+            "1": "Caríssimo Gestor,\n\nAcesse: https://estruturasuas.mds.gov.br/\nFaça login com sua conta GOV.BR.\n\nEm caso de dúvidas, sugerimos a leitura do material de apoio.\nAcesse aqui: https://fnas.mds.gov.br/emendas-e-pleitos/#materiais\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "2": "Caríssimo gestor,\n\nO FNAS criou o guia instrucional sobre reparo, manutenção e adaptação de unidades públicas socioassistenciais.\nAcesse aqui: https://fnas.mds.gov.br/guia-institucional-sobre-reparo-manutencao-e-adaptacao-de-unidades-publicas-socioassistenciais/\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "3": "Caríssimo Gestor,\n\nO FMAS após receber o recurso deve seguir os passos a seguir:\n\nSe GND 3 (custeio) e a unidade beneficiária for:\n- *Privada*: O Recurso deve ser transferido para entidade executar conforme o plano de trabalho apresentado ao FMAS.\n- *Equipamento Público*: O recurso deve ser executado pelo FMAS conforme a necessidade dos equipamentos públicos.\n\nSe GND 4 (investimento) e a unidade beneficiária for:\n- *Privada*: O FMAS deve fazer a licitação e após o recebimento do(s) item(ns) fazer a cessão de uso a entidade beneficiária.\n- *Equipamento Público*: O FMAS deve licitar normalmente.\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "4": "Caríssimo Gestor,\n\nAcesse: https://idp.transferegov.sistema.gov.br/idp/\nColoque seu login/senha do gov.br.\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "5": "Caríssimo Gestor,\n\nPara consultar o CNEAS acesse: https://aplicacoes.mds.gov.br/cneas/publico/xhtml/consultapublica/pesquisar.jsf\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "6": "Caríssimo Gestor,\n\nVerifique o pagamento do seu recurso no portal Parcelas Pagas.\nAcesse aqui: https://aplicacoes.mds.gov.br/suaswebcons/restrito/execute.jsf?b=*dpotvmubsQbsdfmbtQbhbtNC&event=*fyjcjs\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "7": "Caríssimo Gestor,\n\nEsses são os contatos da Equipe de instrução da CGGT:\n\n(i) EstruturaSUAS:\n\n*Adriano* - 61.2030-3727\n*Ayalla* - 61.2030-1777\n*Dhara* - 61.2030-1891\n*Elizabeth* - 61.2030-3080\n*Felipe* - 61.2030-3773\n*Lecsandra* - 61.2030-1872\n*Neide* - 61.2030-1892\n*William* - 61.2030-1766\n\n(ii) Contratos de Repasse:\n\n*Gabriela Godoy* - 61.2030-1763\n*Viviane* - 61.2030-1792\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "8": "Caríssimos Gestor,\n\nTodos os requerimentos e/ou envio de documentos endereçados ao FNAS, devem ser encaminhados através do protocolo digital.\nAcesse aqui:\nhttps://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU
+        };
+
+        const RESPOSTAS_MERITO = {
+            "1": "Caríssimos Gestor,\n\nAo ser colocado em complementação, o Gestor é informado dos motivos através dos contatos informados no ato do cadastro da programação.\nSe necessário, peça cópia: apoioaprojetos.fnas@mds.gov.br\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "2": "Caríssimos Gestor,\n\nAo ser colocado em complementação, o Presidente do Conselho é informado dos motivos através dos contatos informados no ato do cadastro da programação.\nSe necessário, peça cópia: apoioaprojetos.fnas@mds.gov.br\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "3": "Caríssimos Gestor,\n\nOs dados cadastrais da entidade socioassistencial devem permanecer atualizados no CNEAS, para que ela seja elegível ao recebimento de recursos federais.\nDito isso, verifique se a entidade cadastrada atende aos requisitos dispostos no art. 15 da Portaria 1.044/2025. A saber:\n\nArt. 15. As entidades e organizações de assistência social só estarão aptas a receber recursos se forem reconhecidas e referenciadas ao SUAS, comprovando cumprir os seguintes requisitos:\nI - possuir o cadastro no CNEAS com o status de concluído há no mínimo 1 (um) ano, com a mesma oferta do serviço socioassistencial nacionalmente reconhecido declarada na inscrição do conselho de assistência social do Munícipio ou do Distrito Federal;\nII - possuir o cadastro do CNEAS atualizado há pelo menos 2 (dois) anos; e\nIII - possuir declaração do registro de inscrição no respectivo conselho de assistência social do Município ou do Distrito Federal no ano vigente, detalhando a (s) oferta (s) realizadas.\n§1º Para indicação de entidades e organizações de assistência social no EstruturaSUAS não será exigida certificação ou titulação concedida pelo Poder Público, a exemplo da Certificação de Entidades Beneficentes de Assistência Social - CEBAS.\n§2º As ofertas de que trata o inciso I do caput deverão ser prestadas no território correspondente à circunscrição do ente federado beneficiado com a programação, devendo ser apresentadas as inscrições dos respectivos conselhos de assistência social em cada local de atuação.\n§3º Para fins do disposto no inciso II do caput, devem estar atualizadas no CNEAS as seguintes informações da OSC:\nI – informações cadastrais a respeito da entidade;\nII - questões gerais sobre gestão e monitoramento das entidades de assistência social;\nIII – informações da oferta de serviços; e\nIV – parecer do gestor local após a visita.\n§4º A declaração de que trata inciso III do caput deverá ser vinculada à programação no EstruturaSUAS.\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "4": "Caríssimo Gestor,\n\nEsses são os contatos da Equipe de Análise de Mérito da CGGT:\n\n*Gleici* - 61.2030-1844\n*Aline Ranny* - 61.2030-1841\n*Ana Paula* - 61.2030-1792\n*Daniela de Cássia* - 61.2030-1811\n*Danilo* - 61.2030-1877\n*Dulce* - 61.2030-1782\n*Felipe* - 61.2030-1712\n*Guilherme* - 61.2030-1784\n*Levy* - 61.2030-1845\n*Maíra* - 61.2030-1820\n*Maria* - 61.2030-1846\n*Palloma* - 61.2030-1847\n*Raquel* - 61.2030-1875\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "5": "Caríssimos Gestor,\n\nTodos os requerimentos e/ou envio de documentos endereçados ao FNAS, devem ser encaminhados através do protocolo digital.\nAcesse aqui:\nhttps://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU
+        };
+
+        const RESPOSTAS_EXECUCAO = {
+            "1": "Caríssimos Gestor,\n\nOs pedidos de prorrogação da execução de recursos devem ser encaminhados via ofício, assinado pelo Gestor, ao protocolo digital do MDS.\nAcesse aqui: https://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "2": "Caríssimos Gestor,\n\nxxxxxxxxxxxxx\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "3": "Caríssimos Gestor,\n\nxxxxxxxxxxxxx\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "4": "Caríssimos Gestor,\n\nO ente deve consultar o seu setor contábil para reprogramar o recurso dentro do seu Município/Estado.\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "5": "Caríssimos Gestor,\n\nxxxxxxxxxxxxx\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "6": "Caríssimos Gestor,\n\nTodas as informações sobre a plotagem, adesivação de veículos, foram concentradas no site do FNAS.\nAcesse aqui: https://fnas.mds.gov.br/orientacoes-para-adesivagem-de-veiculos-e-placas-de-identificacao/\n\nO FNAS também disponibiliza a(s) ATA(s) de registro de preços vigentes.\nAcesse aqui: https://blog.mds.gov.br/redesuas/mobsuas/\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "7": "Caríssimos Gestor,\n\nQuanto ao repasse de recursos no período de defeso eleitoral, o MDS não identifica impedimento.\nContudo, o ente deve buscar orientações da sua Procuradoria Jurídica Municipal/Estadual.\nHavendo impedimento, o Ente Federado deverá solicitar a prorrogação da execução do recurso via ofício ao MDS, devidamente assinado pelo Gestor Municipal e enviado através do Protocolo Digital do MDS:\n\nhttps://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "8": "Caríssimos Gestor,\n\nTodos os requerimentos e/ou envio de documentos endereçados ao FNAS, devem ser encaminhados através do protocolo digital.\nAcesse aqui:\nhttps://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "9": "Caríssimo Gestor,\n\nEsses são os contatos da Equipe de Execução da CGGT:\n\n(i) EstruturaSUAS e Transferências Especiais:\n*Ana Clara* - 61.2030-1883\n*Bruna Mamede* - 61.2030-1922\n*Leonardo* - 61.2030.1922\n\n(ii) Transfere.gov:\n*Aline Afonso* - 61.2030-1904\n*Douglas* - 61.2030-1895\n*Gisele* - 61.2030-1749\n*Lidiane* - 61.2030-1749\n*Lilian* - 61.2030-1885\n*Vicktor* - 61.2030-1717\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU
+        };
+
+        const RESPOSTAS_PRESTACAO = {
+            "1": "Caríssimo Gestor,\n\nA equipe da prestação de contas do FNAS atendente nos seguintes contatos:\n\n61. 2030-1883 ou 61.2030.1992\nE-mail: prestacaodecontasfnas@mds.gov.br\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU,
+            "2": "Caríssimos Gestor,\n\nTodos os requerimentos e/ou envio de documentos endereçados ao FNAS, devem ser encaminhados através do protocolo digital.\nAcesse aqui:\nhttps://www.gov.br/pt-br/servicos/protocolar-documentos-junto-ao-ministerio-do-desenvolvimento-e-assistencia-social-familia-e-combate-a-fome\n\nConheça nosso site: https://fnas.mds.gov.br/\n\nQualquer dúvida, estamos à disposição.\n\nCoordenação-Geral de Gestão de Transferências – CGGT\nFundo Nacional de Assistência Social\nSecretaria Nacional de Assistência Social" + RODAPE_SUBMENU
+        };
+
+        let estado = "novo";
+
+        function formatarTexto(texto) {
+            let formatado = texto
+                .replace(/\*(.*?)\*/g, '<strong>$1</strong>')
+                .replace(/_(.*?)_/g, '<em>$1</em>');
+            const urlRegex = /(https?:\/\/[^\s]+)/g;
+            formatado = formatado.replace(urlRegex, url => `<a href="${url}" target="_blank">${url}</a>`);
+            return formatado;
+        }
+
+        function adicionarMensagem(texto, tipo) {
+            const painel = document.getElementById("chat-mensagens");
+            const div = document.createElement("div");
+            div.className = `msg ${tipo}`;
+            const hora = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            div.innerHTML = `${formatarTexto(texto)}<span class="hora">${hora}</span>`;
+            painel.appendChild(div);
+            painel.scrollTop = painel.scrollHeight;
+        }
+
+        function iniciarChat() {
+            setTimeout(() => {
+                adicionarMensagem(gerarMenuPrincipal(), "bot");
+                estado = "menu_principal";
+            }, 400);
+        }
+
+        function enviarMensagem() {
+            const campo = document.getElementById("campo-texto");
+            const texto = campo.value.trim();
+            if (!texto) return;
+
+            adicionarMensagem(texto, "user");
+            campo.value = "";
+
+            setTimeout(() => {
+                processarMensagem(texto);
+            }, 500);
+        }
+
+        function processarMensagem(texto) {
+            if (estado === "humano") {
+                if (texto.toLowerCase() === "#menu") {
+                    estado = "menu_principal";
+                    adicionarMensagem(gerarMenuPrincipal(), "bot");
+                } else {
+                    adicionarMensagem("🔇 *[Atendimento Pausado]*: O chamado foi transferido para um técnico humano. Digite *#menu* para reativar o bot.", "bot");
+                }
+                return;
+            }
+
+            if (estado === "menu_principal") {
+                if (texto === "1") { adicionarMensagem(MENU_INSTRUCAO, "bot"); estado = "instrucao"; }
+                else if (texto === "2") { adicionarMensagem(MENU_MERITO, "bot"); estado = "merito"; }
+                else if (texto === "3") { adicionarMensagem(MENU_EXECUCAO, "bot"); estado = "execucao"; }
+                else if (texto === "4") { adicionarMensagem(MENU_PRESTACAO, "bot"); estado = "prestacao"; }
+                else { adicionarMensagem(`${MSG_INVALIDA}\n\n${gerarMenuPrincipal()}`, "bot"); }
+            }
+            else if (estado === "instrucao") {
+                if (RESPOSTAS_INSTRUCAO[texto]) { adicionarMensagem(RESPOSTAS_INSTRUCAO[texto], "bot"); }
+                else if (texto === "9") { adicionarMensagem(MSG_ATENDENTE, "bot"); estado = "humano"; }
+                else if (texto === "0") { adicionarMensagem(gerarMenuPrincipal(), "bot"); estado = "menu_principal"; }
+                else { adicionarMensagem(`${MSG_INVALIDA}\n\n${MENU_INSTRUCAO}`, "bot"); }
+            }
+            else if (estado === "merito") {
+                if (RESPOSTAS_MERITO[texto]) { adicionarMensagem(RESPOSTAS_MERITO[texto], "bot"); }
+                else if (texto === "6") { adicionarMensagem(MSG_ATENDENTE, "bot"); estado = "humano"; }
+                else if (texto === "0") { adicionarMensagem(gerarMenuPrincipal(), "bot"); estado = "menu_principal"; }
+                else { adicionarMensagem(`${MSG_INVALIDA}\n\n${MENU_MERITO}`, "bot"); }
+            }
+            else if (estado === "execucao") {
+                if (RESPOSTAS_EXECUCAO[texto]) { adicionarMensagem(RESPOSTAS_EXECUCAO[texto], "bot"); }
+                else if (texto === "10") { adicionarMensagem(MSG_ATENDENTE, "bot"); estado = "humano"; }
+                else if (texto === "0") { adicionarMensagem(gerarMenuPrincipal(), "bot"); estado = "menu_principal"; }
+                else { adicionarMensagem(`${MSG_INVALIDA}\n\n${MENU_EXECUCAO}`, "bot"); }
+            }
+            else if (estado === "prestacao") {
+                if (RESPOSTAS_PRESTACAO[texto]) { adicionarMensagem(RESPOSTAS_PRESTACAO[texto], "bot"); }
+                else if (texto === "3") { adicionarMensagem(MSG_ATENDENTE, "bot"); estado = "humano"; }
+                else if (texto === "0") { adicionarMensagem(gerarMenuPrincipal(), "bot"); estado = "menu_principal"; }
+                else { adicionarMensagem(`${MSG_INVALIDA}\n\n${MENU_PRESTACAO}`, "bot"); }
+            }
+        }
+    </script>
+</body>
+</html>
